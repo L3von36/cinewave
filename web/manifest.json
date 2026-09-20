@@ -1,0 +1,12 @@
+{
+  "name": "CineWave",
+  "short_name": "CineWave",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0B0D12",
+  "theme_color": "#0B0D12",
+  "description": "A cinematic streaming experience built with Flutter and Material 3.",
+  "orientation": "any",
+  "categories": ["entertainment"],
+  "icons": []
+}

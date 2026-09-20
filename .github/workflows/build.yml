@@ -1,0 +1,176 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: android, os: ubuntu-latest, platforms: android }
+          - { target: ios, os: macos-latest, platforms: ios }
+          - { target: web, os: ubuntu-latest, platforms: web }
+          - { target: windows, os: windows-latest, platforms: windows }
+          - { target: macos, os: macos-latest, platforms: macos }
+          - { target: linux, os: ubuntu-latest, platforms: linux }
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Linux build dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Set up Java
+        if: matrix.target == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate platform scaffolding
+        run: flutter create . --project-name cinewave --org com.cineapps --platforms ${{ matrix.platforms }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # ---------- Android ----------
+      - name: Build APK (universal + split per ABI)
+        if: matrix.target == 'android'
+        run: |
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+
+      - name: Build App Bundle
+        if: matrix.target == 'android'
+        run: flutter build appbundle --release
+
+      - name: Upload Android artifacts
+        if: matrix.target == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinewave-android
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+          retention-days: 14
+
+      # ---------- iOS ----------
+      - name: Build iOS (unsigned)
+        if: matrix.target == 'ios'
+        run: flutter build ios --release --no-codesign
+
+      - name: Package iOS app
+        if: matrix.target == 'ios'
+        run: |
+          cd build/ios/iphoneos
+          zip -qry ../../../../cinewave-ios-unsigned.zip ./*.app
+
+      - name: Upload iOS artifact
+        if: matrix.target == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinewave-ios-unsigned
+          path: cinewave-ios-unsigned.zip
+          retention-days: 14
+
+      # ---------- Web ----------
+      - name: Build web
+        if: matrix.target == 'web'
+        run: flutter build web --release --base-href /${{ github.event.repository.name }}/
+
+      - name: Upload web artifact
+        if: matrix.target == 'web'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinewave-web
+          path: build/web
+          retention-days: 14
+
+      # ---------- Windows ----------
+      - name: Build Windows
+        if: matrix.target == 'windows'
+        run: flutter build windows --release
+
+      - name: Package Windows build
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath cinewave-windows-x64.zip
+
+      - name: Upload Windows artifact
+        if: matrix.target == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinewave-windows-x64
+          path: cinewave-windows-x64.zip
+          retention-days: 14
+
+      # ---------- macOS ----------
+      - name: Build macOS
+        if: matrix.target == 'macos'
+        run: flutter build macos --release
+
+      - name: Package macOS app
+        if: matrix.target == 'macos'
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -qry ../../../../../cinewave-macos.zip ./*.app
+
+      - name: Upload macOS artifact
+        if: matrix.target == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinewave-macos
+          path: cinewave-macos.zip
+          retention-days: 14
+
+      # ---------- Linux ----------
+      - name: Build Linux
+        if: matrix.target == 'linux'
+        run: flutter build linux --release
+
+      - name: Package Linux bundle
+        if: matrix.target == 'linux'
+        run: tar -czf cinewave-linux-x64.tar.gz -C build/linux/x64/release bundle
+
+      - name: Upload Linux artifact
+        if: matrix.target == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinewave-linux-x64
+          path: cinewave-linux-x64.tar.gz
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/**
