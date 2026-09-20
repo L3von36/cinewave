@@ -84,21 +84,27 @@ class _MovieCardState extends State<MovieCard> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  movie.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13.5,
+                Flexible(
+                  child: Text(
+                    movie.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${movie.year}  •  ${movie.durationLabel}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: scheme.onSurfaceVariant,
+                Flexible(
+                  child: Text(
+                    '${movie.year}  •  ${movie.durationLabel}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],

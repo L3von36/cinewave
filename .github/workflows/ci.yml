@@ -26,9 +26,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate platform scaffolding
-        run: flutter create . --project-name cinewave --org com.cineapps
-
       - name: Install dependencies
         run: flutter pub get
 
