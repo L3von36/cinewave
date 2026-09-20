@@ -78,9 +78,7 @@ jobs:
 
       - name: Package iOS app
         if: matrix.target == 'ios'
-        run: |
-          cd build/ios/iphoneos
-          zip -qry ../../../../cinewave-ios-unsigned.zip ./*.app
+        run: zip -qry cinewave-ios-unsigned.zip build/ios/iphoneos/Runner.app
 
       - name: Upload iOS artifact
         if: matrix.target == 'ios'
@@ -95,12 +93,18 @@ jobs:
         if: matrix.target == 'web'
         run: flutter build web --release --base-href /${{ github.event.repository.name }}/
 
+      - name: Package web build
+        if: matrix.target == 'web'
+        run: |
+          cd build/web
+          zip -qry ../../cinewave-web.zip .
+
       - name: Upload web artifact
         if: matrix.target == 'web'
         uses: actions/upload-artifact@v4
         with:
           name: cinewave-web
-          path: build/web
+          path: cinewave-web.zip
           retention-days: 14
 
       # ---------- Windows ----------
